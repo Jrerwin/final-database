@@ -107,7 +107,7 @@ public class TopicConnector {
                         if (prevZips.get(zip) != null) {
                             if (zips.get(zip) >= prevZips.get(zip) * 2) {
                                 alerts.add(zip);
-//                                System.out.println("====================\n\n\nALERT" + zip + "\n\n\n====================");
+                                System.out.println("====================\n\n\nALERT" + zip + "\n\n\n====================");
                             }
                         }
                     }
@@ -127,7 +127,7 @@ public class TopicConnector {
                 Launcher.cepEngine.input(Launcher.inputStreamName, gson.toJson(send));
                 System.out.println("");
                 System.out.println("");
-                Launcher.cepEngine.input(Launcher.inputStreamName, message);
+//                Launcher.cepEngine.input(Launcher.inputStreamName, message);
 
             };
 

@@ -38,20 +38,20 @@ public class Launcher {
 
 
         String outputStreamName = "PatientOutStream";
-        String outputStreamAttributesString = "patient_status_code string, count long";
-//        String outputStreamAttributesString = "count long";
+//        String outputStreamAttributesString = "patient_status_code string, count long";
+        String outputStreamAttributesString = "count long";
 
 
-        String queryString = " " +
-                "from PatientInStream#window.timeBatch(5 sec) " +
-                "select patient_status_code, count() as count " +
-                "group by patient_status_code " +
-                "insert into PatientOutStream; ";
 //        String queryString = " " +
-//                "from PatientInStream#window.timeBatch(15 sec) " +
-//                "select zip_code, count() as count " +
-//                "group by zip_code " +
+//                "from PatientInStream " +
+//                "select patient_status_code, count() as count " +
+//                "group by patient_status_code " +
 //                "insert into PatientOutStream; ";
+        String queryString = " " +
+                "from PatientInStream#window.timeBatch(15 sec) " +
+                "select zip_code, count() as count " +
+                "group by zip_code " +
+                "insert into PatientOutStream; ";
 
         //END MODIFY
 
@@ -63,11 +63,12 @@ public class Launcher {
 
         //starting pateint_data collector
         Map<String,String> message_config = new HashMap<>();
-        message_config.put("hostname","vbu231.cs.uky.edu"); //Fill config for your team in
-        message_config.put("port","9099"); //
-        message_config.put("username","team_7");
+//        message_config.put("hostname","vbu231.cs.uky.edu"); //Fill config for your team in
+        message_config.put("hostname", "localhost");
+        message_config.put("port","5672"); //9099
+        message_config.put("username","team_13"); // actually team 7
         message_config.put("password","myPassCS505");
-        message_config.put("virtualhost","7");
+        message_config.put("virtualhost","13");
 
         topicConnector = new TopicConnector(message_config);
         topicConnector.connect();
