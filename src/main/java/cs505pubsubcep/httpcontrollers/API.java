@@ -12,6 +12,7 @@ import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
 import java.io.PrintWriter;
 import java.io.StringWriter;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -29,7 +30,7 @@ public class API {
     }
 
     //check local
-    //curl --header "X-Auth-API-key:1234" "http://localhost:8082/api/checkmycep"
+    //curl --header "X-Auth-API-key:1234" "http://localhost:9000/api/checkmycep"
 
     //check remote
     //curl --header "X-Auth-API-key:1234" "http://[linkblueid].cs.uky.edu:8082/api/checkmycep"
@@ -47,19 +48,16 @@ public class API {
         try {
 
             Map<String,Object> responseMap = new HashMap<>();
+            List<Integer> membersList = new ArrayList<>();
 
-//            responseMap.put("team_name", "Birch Tree Club");
-//            responseMap.put("members", ["1"]);
-//            responseMap.put("url","http://rlsh235.cs.uky.edu:3333");
+            membersList.add(12353015);
+            membersList.add(12435352);
+            membersList.add(12352768);
+            responseMap.put("team_name", "Birch Tree Club");
+            responseMap.put("members", membersList);
+            responseMap.put("app_status_code", 0);
 
-
-            String json = "{\"team_name\":\"Birch Tree Club\"," +
-                    "\"members\": [{\"Jonathan Erwin\":\"12353015\"}, {\"Riley Sheridan\": \"12435352\"}, {\"William Boyd\": \"12352768\"}],\n" +
-                    "\"url\": \"http://rlsh235.cs.uky.edu:3333\"" +
-                    "}";
-            JSONObject jsonObject = new JSONObject(json);
-            responseString = gson.toJson(jsonObject);
-
+            responseString = gson.toJson(responseMap);
 
         } catch (Exception ex) {
 
@@ -155,7 +153,7 @@ public class API {
     public Response getContacts(@HeaderParam("X-Auth-API-Key") String authKey, @PathParam("mrn") String patient_mrn) {
         String responseString = "{}";
         try {
-            responseString = "";
+            responseString = "{\"contactlist\": []}";
         } catch (Exception ex) {
 
             StringWriter sw = new StringWriter();
@@ -175,7 +173,7 @@ public class API {
     public Response getPossibleContacts(@HeaderParam("X-Auth-API-Key") String authKey, @PathParam("mrn") String patient_mrn) {
         String responseString = "{}";
         try {
-            responseString = "";
+            responseString = "{\"contactlist\": []}";
         } catch (Exception ex) {
 
             StringWriter sw = new StringWriter();
@@ -195,7 +193,14 @@ public class API {
     public Response getPatientStatus(@HeaderParam("X-Auth-API-Key") String authKey, @PathParam("hospital_id") String hospital_id) {
         String responseString = "{}";
         try {
-            responseString = "";
+            responseString = "{" +
+                    "\"in-patient_count\": 0" +
+                    "\"in-patient_vax\": 0" +
+                    "\"icu-patient_count\": 0" +
+                    "\"icu-patient_vax\": 0" +
+                    "\"patient_vent_count\": 0" +
+                    "\"patient_vent_vax\": 0" +
+                    "}";
         } catch (Exception ex) {
 
             StringWriter sw = new StringWriter();
@@ -215,7 +220,14 @@ public class API {
     public Response getAllPatientStatus(@HeaderParam("X-Auth-API-Key") String authKey) {
         String responseString = "{}";
         try {
-            responseString = "";
+            responseString = "{" +
+                    "\"in-patient_count\": 0" +
+                    "\"in-patient_vax\": 0" +
+                    "\"icu-patient_count\": 0" +
+                    "\"icu-patient_vax\": 0" +
+                    "\"patient_vent_count\": 0" +
+                    "\"patient_vent_vax\": 0" +
+                    "}";
         } catch (Exception ex) {
 
             StringWriter sw = new StringWriter();

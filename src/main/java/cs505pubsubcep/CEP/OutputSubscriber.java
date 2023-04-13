@@ -10,7 +10,7 @@ public class OutputSubscriber implements InMemoryBroker.Subscriber {
         this.topic = topic;
     }
 
-    public static Integer alert;
+    public static Integer alert = 0;
 
     @Override
     public void onMessage(Object msg) {
@@ -19,8 +19,9 @@ public class OutputSubscriber implements InMemoryBroker.Subscriber {
             System.out.println("OUTPUT CEP EVENT: " + msg);
             System.out.println("");
             String[] sstr = String.valueOf(msg).split(":");
-            String[] outval = sstr[1].split("}");
+            String[] outval = sstr[2].split("}");
             alert = Integer.parseInt(outval[0]);
+            System.out.println(alert);
 
         } catch(Exception ex) {
             ex.printStackTrace();

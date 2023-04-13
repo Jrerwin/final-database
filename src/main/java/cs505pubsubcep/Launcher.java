@@ -33,11 +33,11 @@ public class Launcher {
 
         //START MODIFY
         inputStreamName = "PatientInStream";
-        String inputStreamAttributesString = "first_name string, last_name string, mrn string, zip_code string, patient_status_code string";
-//        String inputStreamAttributesString = "zip_code string";
+//        String inputStreamAttributesString = "first_name string, last_name string, mrn string, zip_code string, patient_status_code string";
+        String inputStreamAttributesString = "zip_code int";
 
 
-        String outputStreamName = "PatientOutStream";
+        String outputStreamName = "PatientOutputStream";
 //        String outputStreamAttributesString = "patient_status_code string, count long";
         String outputStreamAttributesString = "count long";
 
@@ -48,10 +48,10 @@ public class Launcher {
 //                "group by patient_status_code " +
 //                "insert into PatientOutStream; ";
         String queryString = " " +
-                "from PatientInStream#window.timeBatch(15 sec) " +
-                "select zip_code, count() as count " +
+                "from PatientInStream#window.lengthBatch(1) " +
+                "select count() as count " +
                 "group by zip_code " +
-                "insert into PatientOutStream; ";
+                "insert into PatientOutputStream; ";
 
         //END MODIFY
 
@@ -66,9 +66,9 @@ public class Launcher {
 //        message_config.put("hostname","vbu231.cs.uky.edu"); //Fill config for your team in
         message_config.put("hostname", "localhost");
         message_config.put("port","5672"); //9099
-        message_config.put("username","team_13"); // actually team 7
+        message_config.put("username","team_7"); // actually team 7
         message_config.put("password","myPassCS505");
-        message_config.put("virtualhost","13");
+        message_config.put("virtualhost","7");
 
         topicConnector = new TopicConnector(message_config);
         topicConnector.connect();
