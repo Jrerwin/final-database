@@ -6,6 +6,7 @@ import com.rabbitmq.client.Channel;
 import com.rabbitmq.client.Connection;
 import com.rabbitmq.client.ConnectionFactory;
 import com.rabbitmq.client.DeliverCallback;
+import cs505pubsubcep.CEP.OutputSubscriber;
 import cs505pubsubcep.Launcher;
 import io.siddhi.query.api.expression.condition.In;
 
@@ -81,15 +82,16 @@ public class TopicConnector {
 
                 List<TestingData> incomingList = gson.fromJson(message, typeListTestingData);
                 HashMap<Integer, Integer> zips = new HashMap<>();
+                alerts.clear();
                 for (TestingData testingData : incomingList) {
-                    System.out.println("*Java Class*");
-                    System.out.println("\ttesting_id = " + testingData.testing_id);
-                    System.out.println("\tpatient_name = " + testingData.patient_name);
-                    System.out.println("\tpatient_mrn = " + testingData.patient_mrn);
-                    System.out.println("\tpatient_zipcode = " + testingData.patient_zipcode);
-                    System.out.println("\tpatient_status = " + testingData.patient_status);
-                    System.out.println("\tcontact_list = " + testingData.contact_list);
-                    System.out.println("\tevent_list = " + testingData.event_list);
+//                    System.out.println("*Java Class*");
+//                    System.out.println("\ttesting_id = " + testingData.testing_id);
+//                    System.out.println("\tpatient_name = " + testingData.patient_name);
+//                    System.out.println("\tpatient_mrn = " + testingData.patient_mrn);
+//                    System.out.println("\tpatient_zipcode = " + testingData.patient_zipcode);
+//                    System.out.println("\tpatient_status = " + testingData.patient_status);
+//                    System.out.println("\tcontact_list = " + testingData.contact_list);
+//                    System.out.println("\tevent_list = " + testingData.event_list);
 
                     if (zips.get(testingData.patient_zipcode) == null) {
                         zips.put(testingData.patient_zipcode, 1);
@@ -100,19 +102,26 @@ public class TopicConnector {
                 }
 
                 //maybe access hash while in loop above
-
-                alerts.clear();
+                OutputSubscriber.alerts.clear();
+                Map<String, Integer> send = new HashMap<>();
                 if (!prevZips.isEmpty()) {
                     for (Integer zip : zips.keySet()) {
                         if (prevZips.get(zip) != null) {
-                            if (zips.get(zip) >= prevZips.get(zip) * 2) {
-                                alerts.add(zip);
-                                System.out.println("====================\n\n\nALERT" + zip + "\n\n\n====================");
-                            }
+//                            if (zips.get(zip) >= prevZips.get(zip) * 2) {
+//                                alerts.add(zip);
+//                                System.out.println("====================\n\n\nALERT" + zip + "\n\n\n====================");
+//                            }
+                            send.clear();
+                            send.put("zip_code", zip);
+                            send.put("current_count", zips.get(zip));
+                            send.put("prev_count", prevZips.get(zip) * 2);
+//                            System.out.println("\n" + zips.get(zip) + "\t" + (prevZips.get(zip)) + "\n");
+                            Launcher.cepEngine.input(Launcher.inputStreamName, gson.toJson(send));
                         }
                     }
                 }
                 prevZips = (HashMap) zips.clone();
+
 //                System.out.println("====================\n\n\nTEST\n\n\n====================");
 
 //                prevZips = new HashMap<Integer, Integer>(zips);
@@ -122,9 +131,8 @@ public class TopicConnector {
 //                    System.out.println("INPUT CEP EVENT: " +  map);
 //                    Launcher.cepEngine.input(Launcher.inputStreamName, gson.toJson(map));
 //                }
-                Map<String, Integer> send = new HashMap<>();
-                send.put("zip_code", alerts.size());
-                Launcher.cepEngine.input(Launcher.inputStreamName, gson.toJson(send));
+//                send.put("zip_code", alerts.size());
+//                Launcher.cepEngine.input(Launcher.inputStreamName, gson.toJson(send));
                 System.out.println("");
                 System.out.println("");
 //                Launcher.cepEngine.input(Launcher.inputStreamName, message);

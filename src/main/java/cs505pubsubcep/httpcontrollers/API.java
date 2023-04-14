@@ -98,7 +98,7 @@ public class API {
     public Response getZipAlertList(@HeaderParam("X-Auth-API-Key") String authKey) {
         String responseString = "{}";
         try {
-            List<Integer> list = Launcher.topicConnector.alerts;
+            List<Integer> list = OutputSubscriber.alerts;
             responseString = "{\"ziplist\": [";
             for (int i = 0; i < list.size(); i++) {
                 responseString += list.get(i);
@@ -126,7 +126,7 @@ public class API {
     public Response getAlertState(@HeaderParam("X-Auth-API-Key") String authKey) {
         String responseString = "{}";
         try {
-            int alert = OutputSubscriber.alert;
+            int alert = OutputSubscriber.alerts.size();
             if (alert >= 5) {
                 responseString = "{\"state_status\": 1}";
             }
