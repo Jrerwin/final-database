@@ -2,6 +2,7 @@ package cs505pubsubcep;
 
 import cs505pubsubcep.CEP.CEPEngine;
 import cs505pubsubcep.Topics.TopicConnector;
+import cs505pubsubcep.graphDB.GraphDBEngine;
 import org.glassfish.grizzly.http.server.HttpServer;
 import org.glassfish.jersey.grizzly2.httpserver.GrizzlyHttpServerFactory;
 import org.glassfish.jersey.server.ResourceConfig;
@@ -20,6 +21,7 @@ public class Launcher {
     public static String inputStreamName = null;
     public static long accessCount = -1;
 
+    public static GraphDBEngine graphDBEngine;
     public static TopicConnector topicConnector;
 
     public static CEPEngine cepEngine = null;
@@ -29,7 +31,7 @@ public class Launcher {
         //startig DB/CEP init
 
         //READ CLASS COMMENTS BEFORE USING
-//        graphDBEngine = new GraphDBEngine();
+        graphDBEngine = new GraphDBEngine();
 
         System.out.println("Starting CEP...");
 
