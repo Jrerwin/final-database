@@ -26,6 +26,11 @@ public class Launcher {
 
     public static void main(String[] args) throws IOException {
 
+        //startig DB/CEP init
+
+        //READ CLASS COMMENTS BEFORE USING
+//        graphDBEngine = new GraphDBEngine();
+
         System.out.println("Starting CEP...");
 
         cepEngine = new CEPEngine();
