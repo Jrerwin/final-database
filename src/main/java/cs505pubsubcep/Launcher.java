@@ -34,12 +34,12 @@ public class Launcher {
         //START MODIFY
         inputStreamName = "PatientInStream";
 //        String inputStreamAttributesString = "first_name string, last_name string, mrn string, zip_code string, patient_status_code string";
-        String inputStreamAttributesString = "zip_code int";
+        String inputStreamAttributesString = "zip_code string, current_count int, prev_count int";
 
 
-        String outputStreamName = "PatientOutputStream";
+        String outputStreamName = "PatientOutStream";
 //        String outputStreamAttributesString = "patient_status_code string, count long";
-        String outputStreamAttributesString = "count long";
+        String outputStreamAttributesString = "zip_code string, current_count int, prev_count int";
 
 
 //        String queryString = " " +
@@ -49,9 +49,9 @@ public class Launcher {
 //                "insert into PatientOutStream; ";
         String queryString = " " +
                 "from PatientInStream#window.lengthBatch(1) " +
-                "select count() as count " +
-                "group by zip_code " +
-                "insert into PatientOutputStream; ";
+                "select zip_code, current_count, prev_count " +
+                "having current_count >= prev_count " +
+                "insert into PatientOutStream; ";
 
         //END MODIFY
 
