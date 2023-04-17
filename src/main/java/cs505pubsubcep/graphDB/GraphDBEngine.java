@@ -26,7 +26,11 @@ public class GraphDBEngine {
         OrientDB orient = new OrientDB("remote:localhost", OrientDBConfig.defaultConfig());
         db = orient.open("dbproject", "root", "password");
 
-//        clearDB(db);
+        clearDB(db);
+//
+//        OVertex result = db.newVertex("patient");
+//        result.setProperty("patient_mrn", "patient_mrn");
+//        result.save();
 
         //create classes
 //        OClass patient = db.getClass("patient");
@@ -94,6 +98,8 @@ public class GraphDBEngine {
 
         String query = "DELETE VERTEX FROM patient";
         db.command(query);
+//        query = "DELETE EDGE FROM contact";
+//        db.command(query);
 
     }
 

@@ -3,6 +3,8 @@ package cs505pubsubcep.Topics;
 import com.google.gson.Gson;
 import com.google.gson.reflect.TypeToken;
 import com.orientechnologies.orient.core.db.ODatabaseSession;
+import com.orientechnologies.orient.core.db.OrientDB;
+import com.orientechnologies.orient.core.db.OrientDBConfig;
 import com.orientechnologies.orient.core.metadata.schema.OClass;
 import com.orientechnologies.orient.core.record.OEdge;
 import com.orientechnologies.orient.core.record.OVertex;
@@ -23,20 +25,20 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.function.ObjDoubleConsumer;
+import java.util.stream.Stream;
 
 
 public class TopicConnector {
 
     private Gson gson;
     final Type typeOfListMap = new TypeToken<List<Map<String,String>>>(){}.getType();
-
     final Type typeListTestingData = new TypeToken<List<TestingData>>(){}.getType();
+
     public HashMap<Integer, Integer> prevZips = new HashMap<>();
     public List<Integer> alerts = new ArrayList<>();
 
     //private String EXCHANGE_NAME = "patient_data";
     Map<String,String> config;
-    ODatabaseSession db = Launcher.graphDBEngine.db;
 
     public TopicConnector(Map<String,String> config) {
         gson = new Gson();
@@ -93,43 +95,42 @@ public class TopicConnector {
                 List<TestingData> incomingList = gson.fromJson(message, typeListTestingData);
                 HashMap<Integer, Integer> zips = new HashMap<>();
                 alerts.clear();
-                for (TestingData testingData : incomingList) {
-//                    System.out.println("*Java Class*");
-//                    System.out.println("\ttesting_id = " + testingData.testing_id);
-//                    System.out.println("\tpatient_name = " + testingData.patient_name);
-//                    System.out.println("\tpatient_mrn = " + testingData.patient_mrn);
-//                    System.out.println("\tpatient_zipcode = " + testingData.patient_zipcode);
-//                    System.out.println("\tpatient_status = " + testingData.patient_status);
-//                    System.out.println("\tcontact_list = " + testingData.contact_list);
-//                    System.out.println("\tevent_list = " + testingData.event_list);
 
-                    OClass patient = db.getClass("patient");
-                    if (patient == null) {
-                        patient = db.createVertexClass("patient");
+                OrientDB orient = new OrientDB("remote:localhost", OrientDBConfig.defaultConfig());
+                ODatabaseSession db = orient.open("dbproject", "root", "password");
+
+                for (TestingData testingData : incomingList) {
+                    String query = "select from patient where patient_mrn = ?";
+                    OResultSet rs = db.query(query, testingData.patient_mrn);
+                    OVertex patient_vertex;
+                    if (!rs.hasNext()) { // Vertex has not been made yet
+                        patient_vertex = db.newVertex("patient");
+                    } else { // Vertex already exists, grab it
+                        OResult res = rs.next();
+                        patient_vertex = res.toElement().asVertex().get();
                     }
-                    OVertex patient_vertex = Launcher.graphDBEngine.createPatient(db, testingData.patient_mrn);
-//                    OVertex patient_vertex = db.newVertex("patient");
-//                    patient_vertex.setProperty("patient_mrn", testingData.patient_mrn);
-//                    patient_vertex.setProperty("patient_name", testingData.patient_name);
-//                    patient_vertex.setProperty("patient_status", testingData.patient_status);
-//                    patient_vertex.setProperty("patient_zipcode", testingData.patient_zipcode);
-//                    for (String contact : testingData.contact_list) {
-//                        String query = "select from patient where patient_mrn = ?";
-//                        OResultSet rs = db.query(query, testingData.patient_mrn);
-//                        OVertex contact_obj;
-//                        if (!rs.hasNext()) { // Need to make new vertex
-//                            contact_obj = db.newVertex("patient");
-//                            contact_obj.setProperty("patient_mrn", contact);
-//                            contact_obj.save();
-//                        } else {
-//                            OResult res = rs.next();
-//                            contact_obj = (OVertex)res;
-//                        }
-//
-//                        OEdge contact_edge = db.newEdge(patient_vertex, contact_obj);
-//                        contact_edge.save();
-//                    }
-//                    patient_vertex.save();
+
+                    patient_vertex.setProperty("patient_mrn", testingData.patient_mrn);
+                    patient_vertex.setProperty("patient_name", testingData.patient_name);
+                    patient_vertex.setProperty("patient_status", testingData.patient_status);
+                    patient_vertex.setProperty("patient_zipcode", testingData.patient_zipcode);
+                    patient_vertex.save();
+                    for (String contact : testingData.contact_list) {
+                        query = "select from patient where patient_mrn = ?";
+                        rs = db.query(query, contact);
+                        OVertex contact_obj;
+                        if (!rs.hasNext()) { // Need to make new vertex
+                            contact_obj = db.newVertex("patient");
+                            contact_obj.setProperty("patient_mrn", contact);
+                            contact_obj.save();
+                        } else {
+                            OResult res = rs.next();
+                            contact_obj = res.toElement().asVertex().get();
+                        }
+
+                        OEdge contact_edge = db.newEdge(patient_vertex, contact_obj, "contact");
+                        contact_edge.save();
+                    }
 
                     if (zips.get(testingData.patient_zipcode) == null) {
                         zips.put(testingData.patient_zipcode, 1);
