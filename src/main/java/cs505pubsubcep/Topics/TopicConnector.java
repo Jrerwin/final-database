@@ -2,12 +2,21 @@ package cs505pubsubcep.Topics;
 
 import com.google.gson.Gson;
 import com.google.gson.reflect.TypeToken;
+import com.orientechnologies.orient.core.db.ODatabaseSession;
+import com.orientechnologies.orient.core.db.OrientDB;
+import com.orientechnologies.orient.core.db.OrientDBConfig;
+import com.orientechnologies.orient.core.metadata.schema.OClass;
+import com.orientechnologies.orient.core.record.OEdge;
+import com.orientechnologies.orient.core.record.OVertex;
+import com.orientechnologies.orient.core.sql.executor.OResult;
+import com.orientechnologies.orient.core.sql.executor.OResultSet;
 import com.rabbitmq.client.Channel;
 import com.rabbitmq.client.Connection;
 import com.rabbitmq.client.ConnectionFactory;
 import com.rabbitmq.client.DeliverCallback;
 import cs505pubsubcep.CEP.OutputSubscriber;
 import cs505pubsubcep.Launcher;
+import cs505pubsubcep.graphDB.GraphDBEngine;
 import io.siddhi.query.api.expression.condition.In;
 
 import java.lang.reflect.Type;
@@ -15,13 +24,16 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.function.ObjDoubleConsumer;
+import java.util.stream.Stream;
 
 
 public class TopicConnector {
 
     private Gson gson;
-    final Type typeOf = new TypeToken<List<Map<String,String>>>(){}.getType();
+    final Type typeOfListMap = new TypeToken<List<Map<String,String>>>(){}.getType();
     final Type typeListTestingData = new TypeToken<List<TestingData>>(){}.getType();
+
     public HashMap<Integer, Integer> prevZips = new HashMap<>();
     public List<Integer> alerts = new ArrayList<>();
 
@@ -83,22 +95,66 @@ public class TopicConnector {
                 List<TestingData> incomingList = gson.fromJson(message, typeListTestingData);
                 HashMap<Integer, Integer> zips = new HashMap<>();
                 alerts.clear();
+
+                OrientDB orient = new OrientDB("remote:localhost", OrientDBConfig.defaultConfig());
+                ODatabaseSession db = orient.open("dbproject", "root", "password");
+
                 for (TestingData testingData : incomingList) {
-//                    System.out.println("*Java Class*");
-//                    System.out.println("\ttesting_id = " + testingData.testing_id);
-//                    System.out.println("\tpatient_name = " + testingData.patient_name);
-//                    System.out.println("\tpatient_mrn = " + testingData.patient_mrn);
-//                    System.out.println("\tpatient_zipcode = " + testingData.patient_zipcode);
-//                    System.out.println("\tpatient_status = " + testingData.patient_status);
-//                    System.out.println("\tcontact_list = " + testingData.contact_list);
-//                    System.out.println("\tevent_list = " + testingData.event_list);
+                    String query = "select from patient where patient_mrn = ?";
+                    OResultSet rs = db.query(query, testingData.patient_mrn);
+                    OVertex patient_vertex;
+                    if (!rs.hasNext()) { // Vertex has not been made yet
+                        patient_vertex = db.newVertex("patient");
+                    } else { // Vertex already exists, grab it
+                        OResult res = rs.next();
+                        patient_vertex = res.toElement().asVertex().get();
+                    }
+                    rs.close();
+
+                    patient_vertex.setProperty("patient_mrn", testingData.patient_mrn);
+                    patient_vertex.setProperty("patient_name", testingData.patient_name);
+                    patient_vertex.setProperty("patient_status", testingData.patient_status);
+                    patient_vertex.setProperty("patient_zipcode", testingData.patient_zipcode);
+                    patient_vertex.save();
+                    for (String contact : testingData.contact_list) {
+                        query = "select from patient where patient_mrn = ?";
+                        rs = db.query(query, contact);
+                        OVertex contact_obj;
+                        if (!rs.hasNext()) { // Need to make new patient
+                            contact_obj = db.newVertex("patient");
+                            contact_obj.setProperty("patient_mrn", contact);
+                            contact_obj.save();
+                        } else { // Contact patient already exists, grab it
+                            OResult res = rs.next();
+                            contact_obj = res.toElement().asVertex().get();
+                        }
+
+                        OEdge contact_edge = db.newEdge(patient_vertex, contact_obj, "contact");
+                        contact_edge.save();
+                    }
+
+                    for (String event : testingData.event_list) {
+                        query = "select from event where id = ?";
+                        rs = db.query(query, event);
+                        OVertex event_obj;
+                        if (!rs.hasNext()) { // Need to make new event
+                            event_obj = db.newVertex("event");
+                            event_obj.setProperty("id", event);
+                            event_obj.save();
+                        } else { // Event already exists, grab it
+                            OResult res = rs.next();
+                            event_obj = res.toElement().asVertex().get();
+                        }
+                        rs.close();
+                        OEdge attended_edge = db.newEdge(patient_vertex, event_obj, "attended");
+                        attended_edge.save();
+                    }
 
                     if (zips.get(testingData.patient_zipcode) == null) {
                         zips.put(testingData.patient_zipcode, 1);
                     } else {
                         zips.put(testingData.patient_zipcode, zips.get(testingData.patient_zipcode)+1);
                     }
-//                    System.out.println("\n\n\n" + zips.get(testingData.patient_zipcode).toString() + " " + testingData.patient_zipcode + "\n\n\n");
                 }
 
                 //maybe access hash while in loop above
@@ -107,36 +163,17 @@ public class TopicConnector {
                 if (!prevZips.isEmpty()) {
                     for (Integer zip : zips.keySet()) {
                         if (prevZips.get(zip) != null) {
-//                            if (zips.get(zip) >= prevZips.get(zip) * 2) {
-//                                alerts.add(zip);
-//                                System.out.println("====================\n\n\nALERT" + zip + "\n\n\n====================");
-//                            }
                             send.clear();
                             send.put("zip_code", zip);
                             send.put("current_count", zips.get(zip));
                             send.put("prev_count", prevZips.get(zip) * 2);
-//                            System.out.println("\n" + zips.get(zip) + "\t" + (prevZips.get(zip)) + "\n");
                             Launcher.cepEngine.input(Launcher.inputStreamName, gson.toJson(send));
                         }
                     }
                 }
                 prevZips = (HashMap) zips.clone();
-
-//                System.out.println("====================\n\n\nTEST\n\n\n====================");
-
-//                prevZips = new HashMap<Integer, Integer>(zips);
-
-//                List<Map<String,String>> incomingListMap = gson.fromJson(message, typeOf);
-//                for(Map<String,String> map : incomingListMap) {
-//                    System.out.println("INPUT CEP EVENT: " +  map);
-//                    Launcher.cepEngine.input(Launcher.inputStreamName, gson.toJson(map));
-//                }
-//                send.put("zip_code", alerts.size());
-//                Launcher.cepEngine.input(Launcher.inputStreamName, gson.toJson(send));
                 System.out.println("");
                 System.out.println("");
-//                Launcher.cepEngine.input(Launcher.inputStreamName, message);
-
             };
 
             channel.basicConsume(queueName, true, deliverCallback, consumerTag -> {
@@ -165,9 +202,52 @@ public class TopicConnector {
 
             DeliverCallback deliverCallback = (consumerTag, delivery) -> {
 
+                OrientDB orient = new OrientDB("remote:localhost", OrientDBConfig.defaultConfig());
+                ODatabaseSession db = orient.open("dbproject", "root", "password");
+
+                //new message
                 String message = new String(delivery.getBody(), "UTF-8");
-                System.out.println(" [x] Received Hospital List Batch'" +
-                        delivery.getEnvelope().getRoutingKey() + "':'" + message + "'");
+
+                //convert string to class
+                List<Map<String,String>> incomingList = gson.fromJson(message, typeOfListMap);
+                for (Map<String,String> hospitalData : incomingList) {
+                    int hospital_id = Integer.parseInt(hospitalData.get("hospital_id"));
+                    String patient_name = hospitalData.get("patient_name");
+                    String patient_mrn = hospitalData.get("patient_mrn");
+                    int patient_status = Integer.parseInt(hospitalData.get("patient_status"));
+                    //do something with each each record.
+
+                    String query = "select from hospital where hospital_id = ?";
+                    OResultSet rs = db.query(query, hospitalData.get("hospital_id"));
+                    OVertex hospital;
+                    if (!rs.hasNext()) { // Vertex has not been made yet
+                        hospital = db.newVertex("hospital");
+                        hospital.setProperty("hospital_id", hospitalData.get("hospital_id"));
+                        hospital.save();
+                    } else { // Vertex already exists, grab it
+                        OResult res = rs.next();
+                        hospital = res.toElement().asVertex().get();
+                    }
+
+                    query = "select from patient where patient_mrn = ?";
+                    rs = db.query(query, hospitalData.get("patient_mrn"));
+                    OVertex patient_vertex;
+                    if (!rs.hasNext()) { // Vertex has not been made yet
+                        patient_vertex = db.newVertex("patient");
+                        patient_vertex.setProperty("patient_mrn", hospitalData.get("patient_mrn"));
+                        patient_vertex.setProperty("patient_name", hospitalData.get("patient_name"));
+
+                    } else { // Vertex already exists, grab it
+                        OResult res = rs.next();
+                        patient_vertex = res.toElement().asVertex().get();
+                    }
+                    patient_vertex.setProperty("patient_status", hospitalData.get("patient_status"));
+                    patient_vertex.save();
+                    rs.close();
+
+                    OEdge contain = db.newEdge(hospital, patient_vertex, "contains");
+                    contain.save();
+                }
 
             };
 
@@ -197,9 +277,30 @@ public class TopicConnector {
 
             DeliverCallback deliverCallback = (consumerTag, delivery) -> {
 
+                OrientDB orient = new OrientDB("remote:localhost", OrientDBConfig.defaultConfig());
+                ODatabaseSession db = orient.open("dbproject", "root", "password");
+
                 String message = new String(delivery.getBody(), "UTF-8");
                 System.out.println(" [x] Received Vax Batch'" +
                         delivery.getEnvelope().getRoutingKey() + "':'" + message + "'");
+
+                List<Map<String,String>> incomingList = gson.fromJson(message, typeOfListMap);
+                for (Map<String,String> vaxData : incomingList) {
+                    String query = "select from patient where patient_mrn = ?";
+                    OResultSet rs = db.query(query, vaxData.get("patient_mrn"));
+                    OVertex patient_vertex;
+                    if (!rs.hasNext()) { // Vertex has not been made yet
+                        patient_vertex = db.newVertex("patient");
+                        patient_vertex.setProperty("patient_mrn", vaxData.get("patient_mrn"));
+                        patient_vertex.setProperty("patient_name", vaxData.get("patient_name"));
+                    } else { // Vertex already exists, grab it
+                        OResult res = rs.next();
+                        patient_vertex = res.toElement().asVertex().get();
+                    }
+                    patient_vertex.setProperty("vaccination_id", vaxData.get("vaccination_id"));
+                    patient_vertex.save();
+                }
+
 
             };
 

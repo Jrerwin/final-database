@@ -1,9 +1,15 @@
 package cs505pubsubcep.httpcontrollers;
 
 import com.google.gson.Gson;
+import com.orientechnologies.orient.core.db.ODatabaseSession;
+import com.orientechnologies.orient.core.db.OrientDB;
+import com.orientechnologies.orient.core.db.OrientDBConfig;
+import com.orientechnologies.orient.core.sql.executor.OResult;
+import com.orientechnologies.orient.core.sql.executor.OResultSet;
 import cs505pubsubcep.CEP.OutputSubscriber;
 import cs505pubsubcep.CEP.accessRecord;
 import cs505pubsubcep.Launcher;
+import io.siddhi.query.api.expression.condition.In;
 import org.apache.tapestry5.json.JSONObject;
 
 import javax.inject.Inject;
@@ -76,8 +82,12 @@ public class API {
     @Path("/reset")
     @Produces(MediaType.APPLICATION_JSON)
     public Response reset(@HeaderParam("X-Auth-API-Key") String authKey) {
+        OrientDB orient = new OrientDB("remote:localhost", OrientDBConfig.defaultConfig());
+        ODatabaseSession db = orient.open("dbproject", "root", "password");
         String responseString = "{}";
+
         try {
+            Launcher.graphDBEngine.clearDB(db);
             responseString = "{ \"reset_status_code\": 1}";
         } catch (Exception ex) {
 
@@ -85,8 +95,8 @@ public class API {
             ex.printStackTrace(new PrintWriter(sw));
             String exceptionAsString = sw.toString();
             ex.printStackTrace();
-
-            return Response.status(500).entity(exceptionAsString).build();
+            responseString = "{ \"reset_status_code\": 0}";
+//            return Response.status(500).entity(exceptionAsString).build();
         }
         return Response.ok(responseString).header("Access-Control-Allow-Origin", "*").build();
     }
@@ -152,8 +162,30 @@ public class API {
     @Produces(MediaType.APPLICATION_JSON)
     public Response getContacts(@HeaderParam("X-Auth-API-Key") String authKey, @PathParam("mrn") String patient_mrn) {
         String responseString = "{}";
+        OrientDB orient = new OrientDB("remote:localhost", OrientDBConfig.defaultConfig());
+        ODatabaseSession db = orient.open("dbproject", "root", "password");
+
         try {
-            responseString = "{\"contactlist\": []}";
+            responseString = "{\"contactlist\": [";
+            String query = "TRAVERSE inE(\"contact\"), outE(\"contact\"), inV(\"patient\"), outV(\"patient\") " +
+                    "FROM (select from patient where patient_mrn = ?) " +
+                    "WHILE $depth <= 2";
+            OResultSet rs = db.query(query, patient_mrn);
+
+            while (rs.hasNext()) {
+                OResult item = rs.next();
+                if (item.isVertex()) {
+                    if (!(item.getProperty("patient_mrn").equals(patient_mrn))) {
+                        responseString += item.getProperty("patient_mrn");
+                        if (rs.hasNext()) {
+                            responseString += ",";
+                        }
+                    }
+                }
+            }
+            responseString += "]}";
+            rs.close();
+
         } catch (Exception ex) {
 
             StringWriter sw = new StringWriter();
@@ -172,8 +204,42 @@ public class API {
     @Produces(MediaType.APPLICATION_JSON)
     public Response getPossibleContacts(@HeaderParam("X-Auth-API-Key") String authKey, @PathParam("mrn") String patient_mrn) {
         String responseString = "{}";
+        OrientDB orient = new OrientDB("remote:localhost", OrientDBConfig.defaultConfig());
+        ODatabaseSession db = orient.open("dbproject", "root", "password");
+
         try {
-            responseString = "{\"contactlist\": []}";
+            responseString = "{\"contactlist\": [";
+            String query = "TRAVERSE inE(\"attended\"), outE(\"attended\"), inV(), outV() " +
+                    "FROM (select from patient where patient_mrn = ?) " +
+                    "WHILE $depth <= 2";
+            OResultSet rs = db.query(query, patient_mrn); // get events
+
+            while (rs.hasNext()) {
+                OResult item = rs.next();
+                if (item.isVertex() && item.getProperty("patient_mrn") == null) { //  is not a patient, should be event
+                    String query2 = "TRAVERSE inE(\"attended\"), outE(\"attended\"), inV(\"patient\"), outV(\"patient\") " +
+                            "FROM (select from event where id = ?) " +
+                            "WHILE $depth <= 2"; // get patients from event
+                    OResultSet rs2 = db.query(query2, item.getProperty("id").toString());
+                    responseString += item.getProperty("id") + ":[";
+                    while (rs2.hasNext()) {
+                        OResult item2 = rs2.next();
+                        if ((item2.getProperty("patient_mrn") != null) && !item2.getProperty("patient_mrn").equals(patient_mrn)) {
+                            responseString += item2.getProperty("patient_mrn");
+                            if (rs2.hasNext()) {
+                                responseString += ",";
+                            }
+                        }
+                    }
+                    responseString += "]";
+                    if (rs.hasNext()) {
+                        responseString += ",";
+                    }
+                }
+            }
+            responseString += "]}";
+
+
         } catch (Exception ex) {
 
             StringWriter sw = new StringWriter();
@@ -192,14 +258,49 @@ public class API {
     @Produces(MediaType.APPLICATION_JSON)
     public Response getPatientStatus(@HeaderParam("X-Auth-API-Key") String authKey, @PathParam("hospital_id") String hospital_id) {
         String responseString = "{}";
+        OrientDB orient = new OrientDB("remote:localhost", OrientDBConfig.defaultConfig());
+        ODatabaseSession db = orient.open("dbproject", "root", "password");
+
         try {
+            int in = 0;
+            int vax_in = 0;
+            int icu = 0;
+            int vax_icu = 0;
+            int vent = 0;
+            int vax_vent = 0;
+            String query = "TRAVERSE inE(\"contains\"), outE(\"contains\"), inV(\"patient\"), outV(\"patient\") " +
+                    "FROM (select from hospital where hospital_id = ?) " +
+                    "WHILE $depth <= 2";
+            OResultSet rs = db.query(query, hospital_id);
+
+            while (rs.hasNext()) {
+                OResult item = rs.next();
+                if (item.getProperty("patient_mrn") != null) { // is patient
+                    if (item.getProperty("vaccination_id") != null) { // is vaccinated
+                        if ((int)item.getProperty("patient_status") == 1)
+                            vax_in += 1;
+                        else if ((int)item.getProperty("patient_status") == 2)
+                            vax_icu += 1;
+                        else if ((int)item.getProperty("patient_status") == 3)
+                            vax_vent += 1;
+                    } else {
+                        if ((int)item.getProperty("patient_status") == 1)
+                            in += 1;
+                        else if ((int)item.getProperty("patient_status") == 2)
+                            icu += 1;
+                        else if ((int)item.getProperty("patient_status") == 3)
+                            vent += 1;
+                    }
+                }
+            }
+
             responseString = "{" +
-                    "\"in-patient_count\": 0" +
-                    "\"in-patient_vax\": 0" +
-                    "\"icu-patient_count\": 0" +
-                    "\"icu-patient_vax\": 0" +
-                    "\"patient_vent_count\": 0" +
-                    "\"patient_vent_vax\": 0" +
+                    "\"in-patient_count\": " + in +
+                    ",\"in-patient_vax\": " + vax_in +
+                    ",\"icu-patient_count\": " + icu +
+                    ",\"icu-patient_vax\": " + vax_icu +
+                    ",\"patient_vent_count\": " + vent +
+                    ",\"patient_vent_vax\": " + vax_vent +
                     "}";
         } catch (Exception ex) {
 
@@ -219,14 +320,49 @@ public class API {
     @Produces(MediaType.APPLICATION_JSON)
     public Response getAllPatientStatus(@HeaderParam("X-Auth-API-Key") String authKey) {
         String responseString = "{}";
+        OrientDB orient = new OrientDB("remote:localhost", OrientDBConfig.defaultConfig());
+        ODatabaseSession db = orient.open("dbproject", "root", "password");
+
         try {
+            int in = 0;
+            int vax_in = 0;
+            int icu = 0;
+            int vax_icu = 0;
+            int vent = 0;
+            int vax_vent = 0;
+            String query = "TRAVERSE inE(\"contains\"), outE(\"contains\"), inV(\"patient\"), outV(\"patient\") " +
+                    "FROM (select from hospital) " +
+                    "WHILE $depth <= 2";
+            OResultSet rs = db.query(query);
+
+            while (rs.hasNext()) {
+                OResult item = rs.next();
+                if (item.getProperty("patient_mrn") != null) { // is patient
+                    if (item.getProperty("vaccination_id") != null) { // is vaccinated
+                        if ((int)item.getProperty("patient_status") == 1)
+                            vax_in += 1;
+                        else if ((int)item.getProperty("patient_status") == 2)
+                            vax_icu += 1;
+                        else if ((int)item.getProperty("patient_status") == 3)
+                            vax_vent += 1;
+                    } else {
+                        if ((int)item.getProperty("patient_status") == 1)
+                            in += 1;
+                        else if ((int)item.getProperty("patient_status") == 2)
+                            icu += 1;
+                        else if ((int)item.getProperty("patient_status") == 3)
+                            vent += 1;
+                    }
+                }
+            }
+
             responseString = "{" +
-                    "\"in-patient_count\": 0" +
-                    "\"in-patient_vax\": 0" +
-                    "\"icu-patient_count\": 0" +
-                    "\"icu-patient_vax\": 0" +
-                    "\"patient_vent_count\": 0" +
-                    "\"patient_vent_vax\": 0" +
+                    "\"in-patient_count\": " + in +
+                    ",\"in-patient_vax\": " + vax_in +
+                    ",\"icu-patient_count\": " + icu +
+                    ",\"icu-patient_vax\": " + vax_icu +
+                    ",\"patient_vent_count\": " + vent +
+                    ",\"patient_vent_vax\": " + vax_vent +
                     "}";
         } catch (Exception ex) {
 
