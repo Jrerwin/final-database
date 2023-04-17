@@ -9,6 +9,7 @@ import com.orientechnologies.orient.core.sql.executor.OResultSet;
 import cs505pubsubcep.CEP.OutputSubscriber;
 import cs505pubsubcep.CEP.accessRecord;
 import cs505pubsubcep.Launcher;
+import io.siddhi.query.api.expression.condition.In;
 import org.apache.tapestry5.json.JSONObject;
 
 import javax.inject.Inject;
@@ -257,14 +258,49 @@ public class API {
     @Produces(MediaType.APPLICATION_JSON)
     public Response getPatientStatus(@HeaderParam("X-Auth-API-Key") String authKey, @PathParam("hospital_id") String hospital_id) {
         String responseString = "{}";
+        OrientDB orient = new OrientDB("remote:localhost", OrientDBConfig.defaultConfig());
+        ODatabaseSession db = orient.open("dbproject", "root", "password");
+
         try {
+            int in = 0;
+            int vax_in = 0;
+            int icu = 0;
+            int vax_icu = 0;
+            int vent = 0;
+            int vax_vent = 0;
+            String query = "TRAVERSE inE(\"contains\"), outE(\"contains\"), inV(\"patient\"), outV(\"patient\") " +
+                    "FROM (select from hospital where hospital_id = ?) " +
+                    "WHILE $depth <= 2";
+            OResultSet rs = db.query(query, hospital_id);
+
+            while (rs.hasNext()) {
+                OResult item = rs.next();
+                if (item.getProperty("patient_mrn") != null) { // is patient
+                    if (item.getProperty("vaccination_id") != null) { // is vaccinated
+                        if ((int)item.getProperty("patient_status") == 1)
+                            vax_in += 1;
+                        else if ((int)item.getProperty("patient_status") == 2)
+                            vax_icu += 1;
+                        else if ((int)item.getProperty("patient_status") == 3)
+                            vax_vent += 1;
+                    } else {
+                        if ((int)item.getProperty("patient_status") == 1)
+                            in += 1;
+                        else if ((int)item.getProperty("patient_status") == 2)
+                            icu += 1;
+                        else if ((int)item.getProperty("patient_status") == 3)
+                            vent += 1;
+                    }
+                }
+            }
+
             responseString = "{" +
-                    "\"in-patient_count\": 0" +
-                    "\"in-patient_vax\": 0" +
-                    "\"icu-patient_count\": 0" +
-                    "\"icu-patient_vax\": 0" +
-                    "\"patient_vent_count\": 0" +
-                    "\"patient_vent_vax\": 0" +
+                    "\"in-patient_count\": " + in +
+                    ",\"in-patient_vax\": " + vax_in +
+                    ",\"icu-patient_count\": " + icu +
+                    ",\"icu-patient_vax\": " + vax_icu +
+                    ",\"patient_vent_count\": " + vent +
+                    ",\"patient_vent_vax\": " + vax_vent +
                     "}";
         } catch (Exception ex) {
 
@@ -284,14 +320,49 @@ public class API {
     @Produces(MediaType.APPLICATION_JSON)
     public Response getAllPatientStatus(@HeaderParam("X-Auth-API-Key") String authKey) {
         String responseString = "{}";
+        OrientDB orient = new OrientDB("remote:localhost", OrientDBConfig.defaultConfig());
+        ODatabaseSession db = orient.open("dbproject", "root", "password");
+
         try {
+            int in = 0;
+            int vax_in = 0;
+            int icu = 0;
+            int vax_icu = 0;
+            int vent = 0;
+            int vax_vent = 0;
+            String query = "TRAVERSE inE(\"contains\"), outE(\"contains\"), inV(\"patient\"), outV(\"patient\") " +
+                    "FROM (select from hospital) " +
+                    "WHILE $depth <= 2";
+            OResultSet rs = db.query(query);
+
+            while (rs.hasNext()) {
+                OResult item = rs.next();
+                if (item.getProperty("patient_mrn") != null) { // is patient
+                    if (item.getProperty("vaccination_id") != null) { // is vaccinated
+                        if ((int)item.getProperty("patient_status") == 1)
+                            vax_in += 1;
+                        else if ((int)item.getProperty("patient_status") == 2)
+                            vax_icu += 1;
+                        else if ((int)item.getProperty("patient_status") == 3)
+                            vax_vent += 1;
+                    } else {
+                        if ((int)item.getProperty("patient_status") == 1)
+                            in += 1;
+                        else if ((int)item.getProperty("patient_status") == 2)
+                            icu += 1;
+                        else if ((int)item.getProperty("patient_status") == 3)
+                            vent += 1;
+                    }
+                }
+            }
+
             responseString = "{" +
-                    "\"in-patient_count\": 0" +
-                    "\"in-patient_vax\": 0" +
-                    "\"icu-patient_count\": 0" +
-                    "\"icu-patient_vax\": 0" +
-                    "\"patient_vent_count\": 0" +
-                    "\"patient_vent_vax\": 0" +
+                    "\"in-patient_count\": " + in +
+                    ",\"in-patient_vax\": " + vax_in +
+                    ",\"icu-patient_count\": " + icu +
+                    ",\"icu-patient_vax\": " + vax_icu +
+                    ",\"patient_vent_count\": " + vent +
+                    ",\"patient_vent_vax\": " + vax_vent +
                     "}";
         } catch (Exception ex) {
 

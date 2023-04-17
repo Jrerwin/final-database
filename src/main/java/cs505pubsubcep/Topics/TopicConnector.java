@@ -217,12 +217,20 @@ public class TopicConnector {
                     int patient_status = Integer.parseInt(hospitalData.get("patient_status"));
                     //do something with each each record.
 
-                    OVertex hospital = db.newVertex("hospital");
-                    hospital.setProperty("hospital_id", hospitalData.get("hospital_id"));
-                    hospital.save();
+                    String query = "select from hospital where hospital_id = ?";
+                    OResultSet rs = db.query(query, hospitalData.get("hospital_id"));
+                    OVertex hospital;
+                    if (!rs.hasNext()) { // Vertex has not been made yet
+                        hospital = db.newVertex("hospital");
+                        hospital.setProperty("hospital_id", hospitalData.get("hospital_id"));
+                        hospital.save();
+                    } else { // Vertex already exists, grab it
+                        OResult res = rs.next();
+                        hospital = res.toElement().asVertex().get();
+                    }
 
-                    String query = "select from patient where patient_mrn = ?";
-                    OResultSet rs = db.query(query, hospitalData.get("patient_mrn"));
+                    query = "select from patient where patient_mrn = ?";
+                    rs = db.query(query, hospitalData.get("patient_mrn"));
                     OVertex patient_vertex;
                     if (!rs.hasNext()) { // Vertex has not been made yet
                         patient_vertex = db.newVertex("patient");
