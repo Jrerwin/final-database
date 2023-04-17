@@ -98,8 +98,10 @@ public class GraphDBEngine {
 
         String query = "DELETE VERTEX FROM patient";
         db.command(query);
-//        query = "DELETE EDGE FROM contact";
-//        db.command(query);
+        query = "DELETE VERTEX FROM hospital";
+        db.command(query);
+        query = "DELETE VERTEX FROM event";
+        db.command(query);
 
     }
 

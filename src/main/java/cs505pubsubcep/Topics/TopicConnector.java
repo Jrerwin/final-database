@@ -202,6 +202,9 @@ public class TopicConnector {
 
             DeliverCallback deliverCallback = (consumerTag, delivery) -> {
 
+                OrientDB orient = new OrientDB("remote:localhost", OrientDBConfig.defaultConfig());
+                ODatabaseSession db = orient.open("dbproject", "root", "password");
+
                 //new message
                 String message = new String(delivery.getBody(), "UTF-8");
 
@@ -213,6 +216,29 @@ public class TopicConnector {
                     String patient_mrn = hospitalData.get("patient_mrn");
                     int patient_status = Integer.parseInt(hospitalData.get("patient_status"));
                     //do something with each each record.
+
+                    OVertex hospital = db.newVertex("hospital");
+                    hospital.setProperty("hospital_id", hospitalData.get("hospital_id"));
+                    hospital.save();
+
+                    String query = "select from patient where patient_mrn = ?";
+                    OResultSet rs = db.query(query, hospitalData.get("patient_mrn"));
+                    OVertex patient_vertex;
+                    if (!rs.hasNext()) { // Vertex has not been made yet
+                        patient_vertex = db.newVertex("patient");
+                        patient_vertex.setProperty("patient_mrn", hospitalData.get("patient_mrn"));
+                        patient_vertex.setProperty("patient_name", hospitalData.get("patient_name"));
+
+                    } else { // Vertex already exists, grab it
+                        OResult res = rs.next();
+                        patient_vertex = res.toElement().asVertex().get();
+                    }
+                    patient_vertex.setProperty("patient_status", hospitalData.get("patient_status"));
+                    patient_vertex.save();
+                    rs.close();
+
+                    OEdge contain = db.newEdge(hospital, patient_vertex, "contains");
+                    contain.save();
                 }
 
             };
