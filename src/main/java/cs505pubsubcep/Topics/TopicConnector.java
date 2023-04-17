@@ -269,9 +269,30 @@ public class TopicConnector {
 
             DeliverCallback deliverCallback = (consumerTag, delivery) -> {
 
+                OrientDB orient = new OrientDB("remote:localhost", OrientDBConfig.defaultConfig());
+                ODatabaseSession db = orient.open("dbproject", "root", "password");
+
                 String message = new String(delivery.getBody(), "UTF-8");
                 System.out.println(" [x] Received Vax Batch'" +
                         delivery.getEnvelope().getRoutingKey() + "':'" + message + "'");
+
+                List<Map<String,String>> incomingList = gson.fromJson(message, typeOfListMap);
+                for (Map<String,String> vaxData : incomingList) {
+                    String query = "select from patient where patient_mrn = ?";
+                    OResultSet rs = db.query(query, vaxData.get("patient_mrn"));
+                    OVertex patient_vertex;
+                    if (!rs.hasNext()) { // Vertex has not been made yet
+                        patient_vertex = db.newVertex("patient");
+                        patient_vertex.setProperty("patient_mrn", vaxData.get("patient_mrn"));
+                        patient_vertex.setProperty("patient_name", vaxData.get("patient_name"));
+                    } else { // Vertex already exists, grab it
+                        OResult res = rs.next();
+                        patient_vertex = res.toElement().asVertex().get();
+                    }
+                    patient_vertex.setProperty("vaccination_id", vaxData.get("vaccination_id"));
+                    patient_vertex.save();
+                }
+
 
             };
 
