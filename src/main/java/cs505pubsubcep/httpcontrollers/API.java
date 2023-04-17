@@ -203,8 +203,42 @@ public class API {
     @Produces(MediaType.APPLICATION_JSON)
     public Response getPossibleContacts(@HeaderParam("X-Auth-API-Key") String authKey, @PathParam("mrn") String patient_mrn) {
         String responseString = "{}";
+        OrientDB orient = new OrientDB("remote:localhost", OrientDBConfig.defaultConfig());
+        ODatabaseSession db = orient.open("dbproject", "root", "password");
+
         try {
-            responseString = "{\"contactlist\": []}";
+            responseString = "{\"contactlist\": [";
+            String query = "TRAVERSE inE(\"attended\"), outE(\"attended\"), inV(), outV() " +
+                    "FROM (select from patient where patient_mrn = ?) " +
+                    "WHILE $depth <= 2";
+            OResultSet rs = db.query(query, patient_mrn); // get events
+
+            while (rs.hasNext()) {
+                OResult item = rs.next();
+                if (item.isVertex() && item.getProperty("patient_mrn") == null) { //  is not a patient, should be event
+                    String query2 = "TRAVERSE inE(\"attended\"), outE(\"attended\"), inV(\"patient\"), outV(\"patient\") " +
+                            "FROM (select from event where id = ?) " +
+                            "WHILE $depth <= 2"; // get patients from event
+                    OResultSet rs2 = db.query(query2, item.getProperty("id").toString());
+                    responseString += item.getProperty("id") + ":[";
+                    while (rs2.hasNext()) {
+                        OResult item2 = rs2.next();
+                        if ((item2.getProperty("patient_mrn") != null) && !item2.getProperty("patient_mrn").equals(patient_mrn)) {
+                            responseString += item2.getProperty("patient_mrn");
+                            if (rs2.hasNext()) {
+                                responseString += ",";
+                            }
+                        }
+                    }
+                    responseString += "]";
+                    if (rs.hasNext()) {
+                        responseString += ",";
+                    }
+                }
+            }
+            responseString += "]}";
+
+
         } catch (Exception ex) {
 
             StringWriter sw = new StringWriter();
