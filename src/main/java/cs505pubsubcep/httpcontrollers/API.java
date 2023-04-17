@@ -1,6 +1,11 @@
 package cs505pubsubcep.httpcontrollers;
 
 import com.google.gson.Gson;
+import com.orientechnologies.orient.core.db.ODatabaseSession;
+import com.orientechnologies.orient.core.db.OrientDB;
+import com.orientechnologies.orient.core.db.OrientDBConfig;
+import com.orientechnologies.orient.core.sql.executor.OResult;
+import com.orientechnologies.orient.core.sql.executor.OResultSet;
 import cs505pubsubcep.CEP.OutputSubscriber;
 import cs505pubsubcep.CEP.accessRecord;
 import cs505pubsubcep.Launcher;
@@ -76,8 +81,12 @@ public class API {
     @Path("/reset")
     @Produces(MediaType.APPLICATION_JSON)
     public Response reset(@HeaderParam("X-Auth-API-Key") String authKey) {
+        OrientDB orient = new OrientDB("remote:localhost", OrientDBConfig.defaultConfig());
+        ODatabaseSession db = orient.open("dbproject", "root", "password");
         String responseString = "{}";
+
         try {
+            Launcher.graphDBEngine.clearDB(db);
             responseString = "{ \"reset_status_code\": 1}";
         } catch (Exception ex) {
 
@@ -85,8 +94,8 @@ public class API {
             ex.printStackTrace(new PrintWriter(sw));
             String exceptionAsString = sw.toString();
             ex.printStackTrace();
-
-            return Response.status(500).entity(exceptionAsString).build();
+            responseString = "{ \"reset_status_code\": 0}";
+//            return Response.status(500).entity(exceptionAsString).build();
         }
         return Response.ok(responseString).header("Access-Control-Allow-Origin", "*").build();
     }
@@ -152,8 +161,30 @@ public class API {
     @Produces(MediaType.APPLICATION_JSON)
     public Response getContacts(@HeaderParam("X-Auth-API-Key") String authKey, @PathParam("mrn") String patient_mrn) {
         String responseString = "{}";
+        OrientDB orient = new OrientDB("remote:localhost", OrientDBConfig.defaultConfig());
+        ODatabaseSession db = orient.open("dbproject", "root", "password");
+
         try {
-            responseString = "{\"contactlist\": []}";
+            responseString = "{\"contactlist\": [";
+            String query = "TRAVERSE inE(\"contact\"), outE(\"contact\"), inV(\"patient\"), outV(\"patient\") " +
+                    "FROM (select from patient where patient_mrn = ?) " +
+                    "WHILE $depth <= 2";
+            OResultSet rs = db.query(query, patient_mrn);
+
+            while (rs.hasNext()) {
+                OResult item = rs.next();
+                if (item.isVertex()) {
+                    if (!(item.getProperty("patient_mrn").equals(patient_mrn))) {
+                        responseString += item.getProperty("patient_mrn");
+                        if (rs.hasNext()) {
+                            responseString += ",";
+                        }
+                    }
+                }
+            }
+            responseString += "]}";
+            rs.close();
+
         } catch (Exception ex) {
 
             StringWriter sw = new StringWriter();

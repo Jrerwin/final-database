@@ -109,6 +109,7 @@ public class TopicConnector {
                         OResult res = rs.next();
                         patient_vertex = res.toElement().asVertex().get();
                     }
+                    rs.close();
 
                     patient_vertex.setProperty("patient_mrn", testingData.patient_mrn);
                     patient_vertex.setProperty("patient_name", testingData.patient_name);
@@ -144,7 +145,7 @@ public class TopicConnector {
                             OResult res = rs.next();
                             event_obj = res.toElement().asVertex().get();
                         }
-
+                        rs.close();
                         OEdge attended_edge = db.newEdge(patient_vertex, event_obj, "attended");
                         attended_edge.save();
                     }
