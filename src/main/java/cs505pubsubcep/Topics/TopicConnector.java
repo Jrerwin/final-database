@@ -119,17 +119,34 @@ public class TopicConnector {
                         query = "select from patient where patient_mrn = ?";
                         rs = db.query(query, contact);
                         OVertex contact_obj;
-                        if (!rs.hasNext()) { // Need to make new vertex
+                        if (!rs.hasNext()) { // Need to make new patient
                             contact_obj = db.newVertex("patient");
                             contact_obj.setProperty("patient_mrn", contact);
                             contact_obj.save();
-                        } else {
+                        } else { // Contact patient already exists, grab it
                             OResult res = rs.next();
                             contact_obj = res.toElement().asVertex().get();
                         }
 
                         OEdge contact_edge = db.newEdge(patient_vertex, contact_obj, "contact");
                         contact_edge.save();
+                    }
+
+                    for (String event : testingData.event_list) {
+                        query = "select from event where id = ?";
+                        rs = db.query(query, event);
+                        OVertex event_obj;
+                        if (!rs.hasNext()) { // Need to make new event
+                            event_obj = db.newVertex("event");
+                            event_obj.setProperty("id", event);
+                            event_obj.save();
+                        } else { // Event already exists, grab it
+                            OResult res = rs.next();
+                            event_obj = res.toElement().asVertex().get();
+                        }
+
+                        OEdge attended_edge = db.newEdge(patient_vertex, event_obj, "attended");
+                        attended_edge.save();
                     }
 
                     if (zips.get(testingData.patient_zipcode) == null) {
