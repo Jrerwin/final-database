@@ -73,7 +73,6 @@ public class TopicConnector {
 
     private void patientListChannel(Channel channel) {
         try {
-
             System.out.println("Creating patient_list channel");
 
             String topicName = "patient_list";
@@ -187,7 +186,6 @@ public class TopicConnector {
 
     private void hospitalListChannel(Channel channel) {
         try {
-
             String topicName = "hospital_list";
 
             System.out.println("Creating hospital_list channel");
@@ -207,16 +205,12 @@ public class TopicConnector {
 
                 //new message
                 String message = new String(delivery.getBody(), "UTF-8");
+                System.out.println(" [x] Received Hospital Batch'" +
+                        delivery.getEnvelope().getRoutingKey() + "':'" + message + "'");
 
                 //convert string to class
                 List<Map<String,String>> incomingList = gson.fromJson(message, typeOfListMap);
                 for (Map<String,String> hospitalData : incomingList) {
-                    int hospital_id = Integer.parseInt(hospitalData.get("hospital_id"));
-                    String patient_name = hospitalData.get("patient_name");
-                    String patient_mrn = hospitalData.get("patient_mrn");
-                    int patient_status = Integer.parseInt(hospitalData.get("patient_status"));
-                    //do something with each each record.
-
                     String query = "select from hospital where hospital_id = ?";
                     OResultSet rs = db.query(query, hospitalData.get("hospital_id"));
                     OVertex hospital;
@@ -262,7 +256,6 @@ public class TopicConnector {
 
     private void vaxListChannel(Channel channel) {
         try {
-
             String topicName = "vax_list";
 
             System.out.println("Creating vax_list channel");
@@ -301,7 +294,6 @@ public class TopicConnector {
                     patient_vertex.save();
                 }
 
-
             };
 
             channel.basicConsume(queueName, true, deliverCallback, consumerTag -> {
@@ -312,5 +304,4 @@ public class TopicConnector {
             ex.printStackTrace();
         }
     }
-
 }

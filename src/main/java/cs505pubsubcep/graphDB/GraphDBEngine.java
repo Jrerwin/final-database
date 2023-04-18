@@ -26,7 +26,7 @@ public class GraphDBEngine {
         OrientDB orient = new OrientDB("remote:localhost", OrientDBConfig.defaultConfig());
         db = orient.open("dbproject", "root", "password");
 
-        clearDB(db);
+//        clearDB(db);
 //
 //        OVertex result = db.newVertex("patient");
 //        result.setProperty("patient_mrn", "patient_mrn");

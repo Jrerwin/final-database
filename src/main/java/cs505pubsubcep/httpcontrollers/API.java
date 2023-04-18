@@ -61,7 +61,7 @@ public class API {
             membersList.add(12352768);
             responseMap.put("team_name", "Birch Tree Club");
             responseMap.put("members", membersList);
-            responseMap.put("app_status_code", 0);
+            responseMap.put("app_status_code", 1);
 
             responseString = gson.toJson(responseMap);
 
@@ -84,10 +84,18 @@ public class API {
     public Response reset(@HeaderParam("X-Auth-API-Key") String authKey) {
         OrientDB orient = new OrientDB("remote:localhost", OrientDBConfig.defaultConfig());
         ODatabaseSession db = orient.open("dbproject", "root", "password");
+
+
         String responseString = "{}";
 
         try {
-            Launcher.graphDBEngine.clearDB(db);
+            String query = "DELETE VERTEX FROM patient";
+            db.command(query);
+            query = "DELETE VERTEX FROM hospital";
+            db.command(query);
+            query = "DELETE VERTEX FROM event";
+            db.command(query);
+
             responseString = "{ \"reset_status_code\": 1}";
         } catch (Exception ex) {
 
@@ -172,17 +180,19 @@ public class API {
                     "WHILE $depth <= 2";
             OResultSet rs = db.query(query, patient_mrn);
 
+            OResult item;
+            List<String> contacts = new ArrayList<>();
+
             while (rs.hasNext()) {
-                OResult item = rs.next();
-                if (item.isVertex()) {
-                    if (!(item.getProperty("patient_mrn").equals(patient_mrn))) {
-                        responseString += item.getProperty("patient_mrn");
-                        if (rs.hasNext()) {
-                            responseString += ",";
-                        }
-                    }
-                }
+                item = rs.next();
+                if (item.isVertex() && !(item.getProperty("patient_mrn").equals(patient_mrn)))
+                    contacts.add(item.getProperty("patient_mrn"));
             }
+
+            for (int i = 0; i < contacts.size(); i++) {
+                responseString += "\"" + contacts.get(i) + "\"" + (i==(contacts.size()-1) ? "": ",");
+            }
+
             responseString += "]}";
             rs.close();
 
@@ -221,17 +231,20 @@ public class API {
                             "FROM (select from event where id = ?) " +
                             "WHILE $depth <= 2"; // get patients from event
                     OResultSet rs2 = db.query(query2, item.getProperty("id").toString());
-                    responseString += item.getProperty("id") + ":[";
+                    responseString += "{\"" + item.getProperty("id") + "\":[";
+
+                    List<String> attended = new ArrayList<>();
                     while (rs2.hasNext()) {
                         OResult item2 = rs2.next();
-                        if ((item2.getProperty("patient_mrn") != null) && !item2.getProperty("patient_mrn").equals(patient_mrn)) {
-                            responseString += item2.getProperty("patient_mrn");
-                            if (rs2.hasNext()) {
-                                responseString += ",";
-                            }
-                        }
+                        if ((item2.getProperty("patient_mrn") != null) && !(item2.getProperty("patient_mrn").equals(patient_mrn)))
+                            attended.add(item2.getProperty("patient_mrn"));
                     }
-                    responseString += "]";
+
+                    for (int i = 0; i < attended.size(); i++) {
+                        responseString += "\"" + attended.get(i) + "\"" + (i==(attended.size()-1) ? "": ",");
+                    }
+
+                    responseString += "]}";
                     if (rs.hasNext()) {
                         responseString += ",";
                     }
@@ -375,83 +388,4 @@ public class API {
         }
         return Response.ok(responseString).header("Access-Control-Allow-Origin", "*").build();
     }
-
-
-//    @GET
-//    @Path("/checkmycep")
-//    @Produces(MediaType.APPLICATION_JSON)
-//    public Response checkMyEndpoint(@HeaderParam("X-Auth-API-Key") String authKey) {
-//        String responseString = "{}";
-//        try {
-//
-//            //get remote ip address from request
-//            String remoteIP = request.get().getRemoteAddr();
-//            //get the timestamp of the request
-//            long access_ts = System.currentTimeMillis();
-//            System.out.println("IP: " + remoteIP + " Timestamp: " + access_ts);
-//
-//            Map<String,String> responseMap = new HashMap<>();
-//            if(Launcher.cepEngine != null) {
-//
-//                    responseMap.put("success", Boolean.TRUE.toString());
-//                    responseMap.put("status_desc","CEP Engine exists");
-//
-//            } else {
-//                responseMap.put("success", Boolean.FALSE.toString());
-//                responseMap.put("status_desc","CEP Engine is null!");
-//            }
-//
-//            responseString = gson.toJson(responseMap);
-//
-//
-//        } catch (Exception ex) {
-//
-//            StringWriter sw = new StringWriter();
-//            ex.printStackTrace(new PrintWriter(sw));
-//            String exceptionAsString = sw.toString();
-//            ex.printStackTrace();
-//
-//            return Response.status(500).entity(exceptionAsString).build();
-//        }
-//        return Response.ok(responseString).header("Access-Control-Allow-Origin", "*").build();
-//    }
-//
-//    @GET
-//    @Path("/getaccesscount")
-//    @Produces(MediaType.APPLICATION_JSON)
-//    public Response getAccessCount(@HeaderParam("X-Auth-API-Key") String authKey) {
-//        String responseString = "{}";
-//        try {
-//
-//            //get remote ip address from request
-//            String remoteIP = request.get().getRemoteAddr();
-//            //get the timestamp of the request
-//            long access_ts = System.currentTimeMillis();
-//            System.out.println("IP: " + remoteIP + " Timestamp: " + access_ts);
-//
-//            //generate event based on access
-//            String inputEvent = gson.toJson(new accessRecord(remoteIP,access_ts));
-//            System.out.println("inputEvent: " + inputEvent);
-//
-//            //send input event to CEP
-//            Launcher.cepEngine.input(Launcher.inputStreamName, inputEvent);
-//
-//            //generate a response
-//            Map<String,String> responseMap = new HashMap<>();
-//            responseMap.put("accesscoint",String.valueOf(Launcher.accessCount));
-//            responseString = gson.toJson(responseMap);
-//
-//        } catch (Exception ex) {
-//
-//            StringWriter sw = new StringWriter();
-//            ex.printStackTrace(new PrintWriter(sw));
-//            String exceptionAsString = sw.toString();
-//            ex.printStackTrace();
-//
-//            return Response.status(500).entity(exceptionAsString).build();
-//        }
-//        return Response.ok(responseString).header("Access-Control-Allow-Origin", "*").build();
-//    }
-
-
 }
