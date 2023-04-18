@@ -224,32 +224,34 @@ public class API {
                     "WHILE $depth <= 2";
             OResultSet rs = db.query(query, patient_mrn); // get events
 
+            List<String> events = new ArrayList<>();
             while (rs.hasNext()) {
                 OResult item = rs.next();
-                if (item.isVertex() && item.getProperty("patient_mrn") == null) { //  is not a patient, should be event
-                    String query2 = "TRAVERSE inE(\"attended\"), outE(\"attended\"), inV(\"patient\"), outV(\"patient\") " +
-                            "FROM (select from event where id = ?) " +
-                            "WHILE $depth <= 2"; // get patients from event
-                    OResultSet rs2 = db.query(query2, item.getProperty("id").toString());
-                    responseString += "{\"" + item.getProperty("id") + "\":[";
-
-                    List<String> attended = new ArrayList<>();
-                    while (rs2.hasNext()) {
-                        OResult item2 = rs2.next();
-                        if ((item2.getProperty("patient_mrn") != null) && !(item2.getProperty("patient_mrn").equals(patient_mrn)))
-                            attended.add(item2.getProperty("patient_mrn"));
-                    }
-
-                    for (int i = 0; i < attended.size(); i++) {
-                        responseString += "\"" + attended.get(i) + "\"" + (i==(attended.size()-1) ? "": ",");
-                    }
-
-                    responseString += "]}";
-                    if (rs.hasNext()) {
-                        responseString += ",";
-                    }
-                }
+                if (item.isVertex() && (item.getProperty("id") != null))
+                    events.add(item.getProperty("id"));
             }
+
+            for (int i = 0; i < events.size(); i++) {
+                String query2 = "TRAVERSE inE(\"attended\"), outE(\"attended\"), inV(\"patient\"), outV(\"patient\") " +
+                        "FROM (select from event where id = ?) " +
+                        "WHILE $depth <= 2"; // get patients from event
+                OResultSet rs2 = db.query(query2, events.get(i));
+                responseString += "{\"" + events.get(i) + "\":[";
+
+                List<String> attended = new ArrayList<>();
+                while (rs2.hasNext()) {
+                    OResult item2 = rs2.next();
+                    if ((item2.getProperty("patient_mrn") != null) && !(item2.getProperty("patient_mrn").equals(patient_mrn)))
+                        attended.add(item2.getProperty("patient_mrn"));
+                }
+
+                for (int j = 0; j < attended.size(); j++) {
+                    responseString += "\"" + attended.get(j) + "\"" + (j==(attended.size()-1) ? "": ",");
+                }
+
+                responseString += "]}" + (i==(events.size()-1) ? "": ",");
+            }
+
             responseString += "]}";
 
 

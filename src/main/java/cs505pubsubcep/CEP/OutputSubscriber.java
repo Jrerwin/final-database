@@ -20,15 +20,13 @@ public class OutputSubscriber implements InMemoryBroker.Subscriber {
     public void onMessage(Object msg) {
 
         try {
-            System.out.println("OUTPUT CEP EVENT: " + msg);
-            System.out.println("");
+//            System.out.println("OUTPUT CEP EVENT: " + msg);
+//            System.out.println("");
             String[] sstr = String.valueOf(msg).split(":");
             String[] outval = sstr[2].split("\"");
             int val = Integer.parseInt(outval[1]);
             alerts.add(val);
-            System.out.println("\nAdded: " + val + "!\n");
-//            alert = Integer.parseInt(outval[0]);
-//            System.out.println(alert);
+//            System.out.println("\nAdded: " + val + "!\n");
 
         } catch(Exception ex) {
             ex.printStackTrace();
