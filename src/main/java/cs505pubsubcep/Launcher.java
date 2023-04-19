@@ -19,7 +19,7 @@ import java.util.Map;
 
 public class Launcher {
 
-    public static final String API_SERVICE_KEY = "12353015"; //Change this to your student id
+    public static final String API_SERVICE_KEY = "12435352"; //Change this to your student id
     public static final int WEB_PORT = 9000;
     public static String inputStreamName = null;
     public static long accessCount = -1;
@@ -73,9 +73,9 @@ public class Launcher {
 
         //starting pateint_data collector
         Map<String,String> message_config = new HashMap<>();
-//        message_config.put("hostname","vbu231.cs.uky.edu"); //Fill config for your team in
-        message_config.put("hostname", "localhost");
-        message_config.put("port","5672"); //9099
+        message_config.put("hostname","vbu231.cs.uky.edu"); //Fill config for your team in
+//        message_config.put("hostname", "localhost");
+        message_config.put("port","9099"); //9099
         message_config.put("username","team_7"); // actually team 7
         message_config.put("password","myPassCS505");
         message_config.put("virtualhost","7");

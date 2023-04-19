@@ -17,7 +17,7 @@ public class GraphDBEngine {
     public GraphDBEngine() {
 
         //launch a docker container for orientdb, don't expect your data to be saved unless you configure a volume
-        //docker run -d --name orientdb -p 2424:2424 -p 2480:2480 -e ORIENTDB_ROOT_PASSWORD=rootpwd orientdb:3.0.0
+        //docker run -d --name orientdb -p 2424:2424 -p 2480:2480 -e ORIENTDB_ROOT_PASSWORD=password orientdb:3.2.18
 
         //use the orientdb dashboard to create a new database
         //see class notes for how to use the dashboard

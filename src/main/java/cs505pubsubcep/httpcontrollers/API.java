@@ -39,7 +39,7 @@ public class API {
     //curl --header "X-Auth-API-key:1234" "http://localhost:9000/api/checkmycep"
 
     //check remote
-    //curl --header "X-Auth-API-key:1234" "http://[linkblueid].cs.uky.edu:8082/api/checkmycep"
+    //curl --header "X-Auth-API-key:1234" "http://[linkblueid].cs.uky.edu:9000/api/checkmycep"
     //curl --header "X-Auth-API-key:1234" "http://localhost:8081/api/checkmycep"
 
     //check remote
@@ -95,6 +95,7 @@ public class API {
             db.command(query);
             query = "DELETE VERTEX FROM event";
             db.command(query);
+            OutputSubscriber.alerts.clear();
 
             responseString = "{ \"reset_status_code\": 1}";
         } catch (Exception ex) {
@@ -285,7 +286,7 @@ public class API {
             int vax_vent = 0;
             String query = "TRAVERSE inE(\"contains\"), outE(\"contains\"), inV(\"patient\"), outV(\"patient\") " +
                     "FROM (select from hospital where hospital_id = ?) " +
-                    "WHILE $depth <= 2";
+                    "WHILE $depth <= 2 LIMIT 2000";
             OResultSet rs = db.query(query, hospital_id);
 
             while (rs.hasNext()) {
@@ -298,7 +299,7 @@ public class API {
                             vax_icu += 1;
                         else if ((int)item.getProperty("patient_status") == 3)
                             vax_vent += 1;
-                    } else {
+                    } else { // not vaccinated
                         if ((int)item.getProperty("patient_status") == 1)
                             in += 1;
                         else if ((int)item.getProperty("patient_status") == 2)
@@ -309,13 +310,19 @@ public class API {
                 }
             }
 
+            double in_total = in + vax_in;
+            double icu_total = icu + vax_icu;
+            double vent_total = vent + vax_vent;
+            double in_vax = (in_total != 0 ? vax_in / in_total: 0);
+            double icu_vax = (icu_total != 0 ? vax_icu / icu_total: 0);
+            double vent_vax = (vent_total != 0 ? vax_vent / vent_total: 0);
             responseString = "{" +
-                    "\"in-patient_count\": " + in +
-                    ",\"in-patient_vax\": " + vax_in +
-                    ",\"icu-patient_count\": " + icu +
-                    ",\"icu-patient_vax\": " + vax_icu +
-                    ",\"patient_vent_count\": " + vent +
-                    ",\"patient_vent_vax\": " + vax_vent +
+                    "\"in-patient_count\": " + (int)in_total +
+                    ",\"in-patient_vax\": " + in_vax +
+                    ",\"icu-patient_count\": " + (int)icu_total +
+                    ",\"icu-patient_vax\": " + icu_vax +
+                    ",\"patient_vent_count\": " + (int)vent_total +
+                    ",\"patient_vent_vax\": " + vent_vax +
                     "}";
         } catch (Exception ex) {
 
@@ -371,13 +378,19 @@ public class API {
                 }
             }
 
+            double in_total = in + vax_in;
+            double icu_total = icu + vax_icu;
+            double vent_total = vent + vax_vent;
+            double in_vax = (in_total != 0 ? vax_in / in_total: 0);
+            double icu_vax = (icu_total != 0 ? vax_icu / icu_total: 0);
+            double vent_vax = (vent_total != 0 ? vax_vent / vent_total: 0);
             responseString = "{" +
-                    "\"in-patient_count\": " + in +
-                    ",\"in-patient_vax\": " + vax_in +
-                    ",\"icu-patient_count\": " + icu +
-                    ",\"icu-patient_vax\": " + vax_icu +
-                    ",\"patient_vent_count\": " + vent +
-                    ",\"patient_vent_vax\": " + vax_vent +
+                    "\"in-patient_count\": " + (int)in_total +
+                    ",\"in-patient_vax\": " + in_vax +
+                    ",\"icu-patient_count\": " + (int)icu_total +
+                    ",\"icu-patient_vax\": " + icu_vax +
+                    ",\"patient_vent_count\": " + (int)vent_total +
+                    ",\"patient_vent_vax\": " + vent_vax +
                     "}";
         } catch (Exception ex) {
 
