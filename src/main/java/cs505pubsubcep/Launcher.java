@@ -20,7 +20,7 @@ import java.util.Map;
 public class Launcher {
 
     public static final String API_SERVICE_KEY = "12435352"; //Change this to your student id
-    public static final int WEB_PORT = 9000;
+    public static final int WEB_PORT = 3333;
     public static String inputStreamName = null;
     public static long accessCount = -1;
 
